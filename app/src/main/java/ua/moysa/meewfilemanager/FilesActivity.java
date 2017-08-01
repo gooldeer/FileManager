@@ -1,15 +1,21 @@
 package ua.moysa.meewfilemanager;
 
+import android.Manifest;
+import android.annotation.TargetApi;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
-import android.support.v7.app.AppCompatActivity;
+import android.support.annotation.NonNull;
+import android.support.annotation.RequiresApi;
+import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
 
-public class FilesActivity extends AppCompatActivity {
+public class FilesActivity extends BaseLifecycleActivity {
+
+    public static final int PERMISSION_REQUEST_CODE = 982;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -17,15 +23,66 @@ public class FilesActivity extends AppCompatActivity {
         setContentView(R.layout.activity_files);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+    }
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        checkPermissions();
+    }
+
+    @TargetApi(Build.VERSION_CODES.M)
+    private void checkPermissions() {
+
+        //TODO at first show funny dialog with explanation
+
+        new AlertDialog.Builder(this)
+                .setMessage("This is file manager. It needs a permission to read / write files")
+                .setPositiveButton("Okay", (dialog, which) -> requestNecessaryPermissions())
+                .setNegativeButton("I don't think so", (dialog, which) -> finish());
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.M)
+    private void requestNecessaryPermissions() {
+        if (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+
+            requestPermissions(
+                    new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                    PERMISSION_REQUEST_CODE
+            );
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+
+            boolean grantResult = true;
+
+            for (int i = 0; i < permissions.length; i++) {
+                String permission = permissions[i];
+
+                if (permission.equals(Manifest.permission.WRITE_EXTERNAL_STORAGE) &&
+                        grantResults[i] != PackageManager.PERMISSION_GRANTED) {
+
+                    grantResult = false;
+                }
             }
-        });
+
+            if (!grantResult) {
+                showSadDialog();
+            }
+        }
+    }
+
+    private void showSadDialog() {
+        //TODO do better
+        new AlertDialog.Builder(this)
+                .setMessage("Very sad:( Try again?")
+                .setPositiveButton("Yes", (dialog, which) -> checkPermissions())
+                .setNegativeButton("No", (dialog, which) -> finish());
     }
 
     @Override

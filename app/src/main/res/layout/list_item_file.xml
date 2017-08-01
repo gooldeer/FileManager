@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<layout xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <data>
+
+        <variable
+            name="file"
+            type="java.io.File" />
+
+        <variable
+            name="presenter"
+            type="ua.moysa.meewfilemanager.view.FilesAdapter.OnFileClickListener" />
+    </data>
+
+    <LinearLayout xmlns:tools="http://schemas.android.com/tools"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:gravity="center_vertical"
+        android:minHeight="?android:attr/listPreferredItemHeightSmall"
+        android:onClick="@{() -> presenter.onFileClick(file)}"
+        android:orientation="horizontal"
+        android:paddingEnd="?android:attr/listPreferredItemPaddingEnd"
+        android:paddingLeft="?android:attr/listPreferredItemPaddingLeft"
+        android:paddingRight="?android:attr/listPreferredItemPaddingRight"
+        android:paddingStart="?android:attr/listPreferredItemPaddingStart"
+        tools:ignore="UseCompoundDrawables">
+
+        <ImageView
+            android:id="@+id/fol"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:clickable="false"
+            android:src="@{file == null || !file.isDirectory() ? @drawable/ic_file : @drawable/ic_folder}" />
+
+        <TextView
+            android:id="@+id/file_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clickable="false"
+            android:gravity="center_vertical"
+            android:paddingLeft="?android:attr/listPreferredItemPaddingLeft"
+            android:paddingStart="?android:attr/listPreferredItemPaddingStart"
+            android:text="@{file != null ? file.getName() : @string/empty}"
+            android:textAppearance="?android:attr/textAppearanceListItemSmall" />
+
+    </LinearLayout>
+
+</layout>
