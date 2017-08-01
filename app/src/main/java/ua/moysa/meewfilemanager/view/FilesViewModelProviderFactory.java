@@ -4,6 +4,8 @@ import android.arch.lifecycle.ViewModel;
 import android.arch.lifecycle.ViewModelProvider;
 import android.support.annotation.NonNull;
 
+import java.io.File;
+
 import ua.moysa.meewfilemanager.data.repo.FilesRepository;
 
 /**
@@ -13,7 +15,11 @@ import ua.moysa.meewfilemanager.data.repo.FilesRepository;
 public class FilesViewModelProviderFactory extends ViewModelProvider.NewInstanceFactory {
 
     @NonNull
-    private final FilesRepository mRepo = new FilesRepository();
+    private final FilesRepository mRepo;
+
+    public FilesViewModelProviderFactory(@NonNull File parent) {
+        mRepo = new FilesRepository(parent);
+    }
 
     @Override
     public <T extends ViewModel> T create(Class<T> modelClass) {

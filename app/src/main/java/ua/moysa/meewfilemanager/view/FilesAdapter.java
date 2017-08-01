@@ -8,6 +8,9 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import com.bignerdranch.android.multiselector.MultiSelector;
+import com.bignerdranch.android.multiselector.SwappingHolder;
+
 import java.io.File;
 
 import ua.moysa.meewfilemanager.R;
@@ -23,12 +26,21 @@ public class FilesAdapter extends RecyclerView.Adapter<FilesAdapter.ViewHolder> 
     private File[] mItems;
 
     @NonNull
+    private MultiSelector mMultiSelector;
+
+    @NonNull
     private OnFileClickListener mOnClickListener = file -> {
         //Dump
     };
 
-    public FilesAdapter(@Nullable File[] items) {
+    @NonNull
+    private OnMultiSelectStartListener mOnMultiSelectStartListener = () -> {
+        //Dump
+    };
+
+    public FilesAdapter(@Nullable File[] items, @NonNull MultiSelector multiSelector) {
         this.mItems = items == null ? new File[0] : items;
+        mMultiSelector = multiSelector;
     }
 
     public void setItems(@Nullable File[] items) {
@@ -39,6 +51,10 @@ public class FilesAdapter extends RecyclerView.Adapter<FilesAdapter.ViewHolder> 
 
     public void setOnClickListener(@NonNull OnFileClickListener onFileClickListener) {
         this.mOnClickListener = onFileClickListener;
+    }
+
+    public void setOnMultiSelectStartListener(@NonNull OnMultiSelectStartListener onMultiSelectStartListener) {
+        this.mOnMultiSelectStartListener = onMultiSelectStartListener;
     }
 
     @Override
@@ -64,27 +80,61 @@ public class FilesAdapter extends RecyclerView.Adapter<FilesAdapter.ViewHolder> 
         return mItems.length;
     }
 
+    @Nullable
+    public File getItem(int position) {
+
+        if (position >= 0 && position < mItems.length) {
+            return mItems[position];
+        }
+        return null;
+    }
+
     public interface OnFileClickListener {
         void onFileClick(@NonNull File file);
     }
 
-    static class ViewHolder extends RecyclerView.ViewHolder {
+    public interface OnMultiSelectStartListener {
+        void onMultiSelectStarted();
+    }
 
-        ViewHolder(View itemView) {
-            super(itemView);
+    static class ViewHolder extends SwappingHolder {
+
+        ViewHolder(View itemView, MultiSelector multiSelector) {
+            super(itemView, multiSelector);
         }
     }
 
-    private class FileViewHolder extends ViewHolder {
+    private class FileViewHolder extends ViewHolder implements View.OnLongClickListener, OnFileClickListener {
 
         private ListItemFileBinding mBinding;
 
-        public FileViewHolder(View itemView) {
-            super(itemView);
+        FileViewHolder(View itemView) {
+            super(itemView, mMultiSelector);
+
+            itemView.setLongClickable(true);
+            itemView.setOnLongClickListener(this);
 
             mBinding = DataBindingUtil.bind(itemView);
+            mBinding.setPresenter(this);
+        }
 
-            mBinding.setPresenter(mOnClickListener);
+        @Override
+        public boolean onLongClick(View v) {
+
+            if (!mMultiSelector.isSelectable()) {
+                mOnMultiSelectStartListener.onMultiSelectStarted();
+                mMultiSelector.setSelectable(true);
+                mMultiSelector.setSelected(this, true);
+                return true;
+            }
+            return false;
+        }
+
+        @Override
+        public void onFileClick(@NonNull File file) {
+            if (!mMultiSelector.tapSelection(this)) {
+                mOnClickListener.onFileClick(file);
+            }
         }
     }
 }

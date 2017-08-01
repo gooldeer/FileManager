@@ -3,4 +3,5 @@
     <string name="action_settings">Settings</string>
     <string name="snack_files_load_error">Files loading error!</string>
     <string name="empty">Emtpy</string>
+    <string name="action_delete">Delete</string>
 </resources>

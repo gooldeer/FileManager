@@ -18,12 +18,17 @@ public class FilesViewModel extends ViewModel {
     @NonNull
     private final FilesRepository mRepo;
 
-    public FilesViewModel(@NonNull FilesRepository mRepo) {
-        this.mRepo = mRepo;
+    public FilesViewModel(@NonNull FilesRepository repo) {
+        this.mRepo = repo;
     }
 
     @NonNull
     public LiveData<Response<File[]>> listFiles(@NonNull File parent) {
         return mRepo.listFiles(parent);
+    }
+
+    @NonNull
+    public LiveData<Response<File[]>> delete(@NonNull File... files) {
+        return mRepo.deleteFile(files);
     }
 }

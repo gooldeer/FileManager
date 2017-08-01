@@ -39,6 +39,7 @@ dependencies {
     def junitVersion = '4.12'
     def mockitoVersion = '2.8.9'
     def espressoVersion = '2.2.2'
+    def recMultiVersion = '0.2'
 
     compile fileTree(dir: 'libs', include: ['*.jar'])
 
@@ -51,6 +52,8 @@ dependencies {
 
     compile "io.reactivex.rxjava2:rxjava:$rxJavaVersion"
     compile "io.reactivex.rxjava2:rxandroid:$rxAndroidVersion"
+
+    compile "com.bignerdranch.android:recyclerview-multiselect:$recMultiVersion"
 
     annotationProcessor "android.arch.lifecycle:compiler:$architectureVersion"
 

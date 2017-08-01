@@ -4,10 +4,10 @@ import android.arch.lifecycle.LiveData;
 import android.arch.lifecycle.MutableLiveData;
 import android.support.annotation.MainThread;
 import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 import android.support.annotation.WorkerThread;
 
 import java.io.File;
+import java.util.Arrays;
 
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
@@ -23,8 +23,15 @@ public class FilesRepository {
     @NonNull
     private MutableLiveData<Response<File[]>> mData = new MutableLiveData<>();
 
+    @NonNull
+    private File mParent;
+
+    public FilesRepository(@NonNull File parent) {
+        this.mParent = parent;
+    }
+
     @WorkerThread
-    @Nullable
+    @NonNull
     private File[] obtainFilesList(@NonNull File parent) {
 
         if (parent.exists() &&
@@ -32,7 +39,14 @@ public class FilesRepository {
                 parent.canWrite() &&
                 parent.isDirectory()) {
 
-            return parent.listFiles();
+            File[] files = parent.listFiles();
+
+            if (files != null) {
+
+                mParent = parent;
+                Arrays.sort(files);
+                return files;
+            }
         }
         throw new IllegalArgumentException();
     }
@@ -72,13 +86,22 @@ public class FilesRepository {
 
     @MainThread
     @NonNull
-    public LiveData<Response<File[]>> deleteFile(@NonNull File file) {
+    public LiveData<Response<File[]>> deleteFile(@NonNull File... files) {
 
-        Observable.just(file)
+        Observable.just(files)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .map(this::delete)
-                .map(b -> b ? mData.getValue() : Response.error("error", (File[]) null))
+                .map(all -> {
+                    for (File f : all) {
+                        if (!delete(f)) {
+                            return false;
+                        }
+                    }
+                    return true;
+                })
+                .map(b -> b ?
+                        Response.success(obtainFilesList(mParent)) :
+                        Response.error("error", (File[]) null))
                 .subscribe(
                         r -> mData.setValue(r),
                         e -> mData.setValue(Response.error(e.getMessage(), null)),
@@ -86,11 +109,6 @@ public class FilesRepository {
                         },
                         d -> mData.setValue(Response.loading(null))
                 );
-        return mData;
-    }
-
-    @NonNull
-    public LiveData<Response<File[]>> getCurrentFiles() {
         return mData;
     }
 }

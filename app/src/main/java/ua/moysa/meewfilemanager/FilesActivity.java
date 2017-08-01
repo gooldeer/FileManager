@@ -1,21 +1,23 @@
 package ua.moysa.meewfilemanager;
 
 import android.Manifest;
-import android.annotation.TargetApi;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
+import android.support.v4.app.FragmentManager;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 
-public class FilesActivity extends BaseLifecycleActivity {
+public class FilesActivity extends BaseLifecycleActivity implements FragmentManager.OnBackStackChangedListener {
 
     public static final int PERMISSION_REQUEST_CODE = 982;
+
+    private boolean mShowPermissions = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -23,36 +25,63 @@ public class FilesActivity extends BaseLifecycleActivity {
         setContentView(R.layout.activity_files);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
+        getSupportFragmentManager().addOnBackStackChangedListener(this);
+        shouldDisplayHomeUp();
     }
 
     @Override
-    protected void onResume() {
-        super.onResume();
-
-        checkPermissions();
+    protected void onPostResume() {
+        super.onPostResume();
+        resume();
     }
 
-    @TargetApi(Build.VERSION_CODES.M)
-    private void checkPermissions() {
+    private void resume() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !checkPermissions()) {
+            if (mShowPermissions) {
+                showPermissionsRequestDialog();
+            }
+        } else {
+            instantiateFragment();
+        }
+    }
 
+    private void instantiateFragment() {
+        FragmentManager manager = getSupportFragmentManager();
+
+        if (manager.findFragmentByTag(FolderFragment.FRAG_TAG) == null) {
+
+            manager
+                    .beginTransaction()
+                    .replace(R.id.fragment, new FolderFragment(), FolderFragment.FRAG_TAG)
+                    .commit();
+        }
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.M)
+    private boolean checkPermissions() {
+
+        return ContextCompat.checkSelfPermission(this,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.M)
+    private void showPermissionsRequestDialog() {
         //TODO at first show funny dialog with explanation
-
         new AlertDialog.Builder(this)
+                .setCancelable(false)
                 .setMessage("This is file manager. It needs a permission to read / write files")
                 .setPositiveButton("Okay", (dialog, which) -> requestNecessaryPermissions())
-                .setNegativeButton("I don't think so", (dialog, which) -> finish());
+                .setNegativeButton("I don't think so", (dialog, which) -> showSadDialog())
+                .show();
     }
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     private void requestNecessaryPermissions() {
-        if (ContextCompat.checkSelfPermission(this,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-
-            requestPermissions(
-                    new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
-                    PERMISSION_REQUEST_CODE
-            );
-        }
+        requestPermissions(
+                new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                PERMISSION_REQUEST_CODE
+        );
     }
 
     @Override
@@ -72,6 +101,7 @@ public class FilesActivity extends BaseLifecycleActivity {
             }
 
             if (!grantResult) {
+                mShowPermissions = false;
                 showSadDialog();
             }
         }
@@ -81,8 +111,13 @@ public class FilesActivity extends BaseLifecycleActivity {
         //TODO do better
         new AlertDialog.Builder(this)
                 .setMessage("Very sad:( Try again?")
-                .setPositiveButton("Yes", (dialog, which) -> checkPermissions())
-                .setNegativeButton("No", (dialog, which) -> finish());
+                .setCancelable(false)
+                .setPositiveButton("Yes", (dialog, which) -> {
+                    mShowPermissions = true;
+                    resume();
+                })
+                .setNegativeButton("No", (dialog, which) -> finish())
+                .show();
     }
 
     @Override
@@ -105,5 +140,22 @@ public class FilesActivity extends BaseLifecycleActivity {
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void onBackStackChanged() {
+        shouldDisplayHomeUp();
+    }
+
+    public void shouldDisplayHomeUp() {
+        boolean goBack = getSupportFragmentManager().getBackStackEntryCount() > 0;
+        //noinspection ConstantConditions
+        getSupportActionBar().setDisplayHomeAsUpEnabled(goBack);
+    }
+
+    @Override
+    public boolean onSupportNavigateUp() {
+        getSupportFragmentManager().popBackStack();
+        return true;
     }
 }
