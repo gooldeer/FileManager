@@ -1,6 +1,7 @@
 package ua.moysa.meewfilemanager;
 
 import android.Manifest;
+import android.annotation.TargetApi;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
@@ -9,16 +10,23 @@ import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.content.ContextCompat;
-import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 
-public class FilesActivity extends BaseLifecycleActivity implements FragmentManager.OnBackStackChangedListener {
+import ua.moysa.meewfilemanager.dialog.RequestPermissionDialog;
+import ua.moysa.meewfilemanager.dialog.SadDialog;
+import ua.moysa.meewfilemanager.util.DialogUtil;
+
+public class FilesActivity extends BaseLifecycleActivity implements
+        FragmentManager.OnBackStackChangedListener,
+        SadDialog.OnSadDialogInteractionListener,
+        RequestPermissionDialog.PermissionDialogInteractionListener {
 
     public static final int PERMISSION_REQUEST_CODE = 982;
 
     private boolean mShowPermissions = true;
+    private boolean mShowSadDialog = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,6 +49,8 @@ public class FilesActivity extends BaseLifecycleActivity implements FragmentMana
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !checkPermissions()) {
             if (mShowPermissions) {
                 showPermissionsRequestDialog();
+            } else if (mShowSadDialog) {
+                showSadDialog();
             }
         } else {
             instantiateFragment();
@@ -68,13 +78,7 @@ public class FilesActivity extends BaseLifecycleActivity implements FragmentMana
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     private void showPermissionsRequestDialog() {
-        //TODO at first show funny dialog with explanation
-        new AlertDialog.Builder(this)
-                .setCancelable(false)
-                .setMessage("This is file manager. It needs a permission to read / write files")
-                .setPositiveButton("Okay", (dialog, which) -> requestNecessaryPermissions())
-                .setNegativeButton("I don't think so", (dialog, which) -> showSadDialog())
-                .show();
+        DialogUtil.from(this).showDialog(new RequestPermissionDialog(), false);
     }
 
     @RequiresApi(api = Build.VERSION_CODES.M)
@@ -103,22 +107,14 @@ public class FilesActivity extends BaseLifecycleActivity implements FragmentMana
 
             if (!grantResult) {
                 mShowPermissions = false;
-                showSadDialog();
+                mShowSadDialog = true;
             }
         }
     }
 
     private void showSadDialog() {
-        //TODO do better
-        new AlertDialog.Builder(this)
-                .setMessage("Very sad:( Try again?")
-                .setCancelable(false)
-                .setPositiveButton("Yes", (dialog, which) -> {
-                    mShowPermissions = true;
-                    resume();
-                })
-                .setNegativeButton("No", (dialog, which) -> finish())
-                .show();
+        mShowSadDialog = false;
+        DialogUtil.from(this).showDialog(new SadDialog(), false);
     }
 
     @Override
@@ -160,5 +156,33 @@ public class FilesActivity extends BaseLifecycleActivity implements FragmentMana
     public boolean onSupportNavigateUp() {
         getSupportFragmentManager().popBackStack();
         return true;
+    }
+
+    @Override
+    public void onSadDialogPositiveClick() {
+        mShowPermissions = true;
+    }
+
+    @Override
+    public void onSadDialogNegativeClick() {
+        finish();
+    }
+
+    @Override
+    public void onSadDialogDismiss() {
+        if (mShowPermissions) {
+            resume();
+        }
+    }
+
+    @TargetApi(Build.VERSION_CODES.M)
+    @Override
+    public void onPermissionDialogPositiveClick() {
+        requestNecessaryPermissions();
+    }
+
+    @Override
+    public void onPermissionDialogNegativeClick() {
+        showSadDialog();
     }
 }

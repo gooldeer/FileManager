@@ -21,6 +21,13 @@
     <string name="pref_key_default_folder">default_folder</string>
     <string name="menu_refresh">Refresh</string>
     <string name="menu_home">Home</string>
+    <string name="dialog_message_permission_dialog">This is file manager. It needs a permission to read / write files</string>
+    <string name="button_okay">Okay</string>
+    <string name="button_dont_think_so">I don\'t think so</string>
+    <string name="dialog_message_sad">Very sad:( Try again?</string>
+    <string name="button_yes">Yes</string>
+    <string name="button_no">No</string>
+    <string name="alert_message_delete_confirmation">Are you sure?</string>
     <string-array name="pref_default_folder_titles">
         <item>@string/folder_root</item>
         <item>@string/folder_sdcard</item>

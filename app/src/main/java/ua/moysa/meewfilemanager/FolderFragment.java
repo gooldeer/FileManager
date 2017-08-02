@@ -14,7 +14,6 @@ import android.support.design.widget.Snackbar;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
-import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.view.ActionMode;
 import android.support.v7.widget.DefaultItemAnimator;
@@ -36,6 +35,8 @@ import java.io.File;
 import io.reactivex.Observable;
 import ua.moysa.meewfilemanager.data.response.Response;
 import ua.moysa.meewfilemanager.databinding.FragmentFolderBinding;
+import ua.moysa.meewfilemanager.dialog.DeleteConfirmationDialog;
+import ua.moysa.meewfilemanager.util.DialogUtil;
 import ua.moysa.meewfilemanager.util.SettingsUtil;
 import ua.moysa.meewfilemanager.view.FilesAdapter;
 import ua.moysa.meewfilemanager.view.FilesViewModel;
@@ -44,13 +45,12 @@ import ua.moysa.meewfilemanager.view.FilesViewModelProviderFactory;
 /**
  * Created by Sergey Moysa
  */
-public class FolderFragment extends Fragment {
+public class FolderFragment extends Fragment implements DeleteConfirmationDialog.OnDeleteConfirmationInteractionListener {
 
     public static final String FRAG_TAG = "fragment_folder.tag";
-
+    public static final int DELETE_REQUEST_CODE = 456;
     private static final String PARENT_KEY = "fragment_folder.parent";
     private static final String MULTISELECT_KEY = "fragment_folder.multiselect";
-
     private FragmentFolderBinding mBinding;
 
     private File mParent;
@@ -60,48 +60,7 @@ public class FolderFragment extends Fragment {
     private FilesAdapter mAdapter;
 
     private MultiSelector mMultiSelector = new MultiSelector();
-
-    private ModalMultiSelectorCallback mActionModeCallback = new ModalMultiSelectorCallback(mMultiSelector) {
-
-        @Override
-        public boolean onCreateActionMode(ActionMode actionMode, Menu menu) {
-            super.onCreateActionMode(actionMode, menu);
-
-            getActivity().getMenuInflater().inflate(R.menu.menu_files_action_mode, menu);
-            return true;
-        }
-
-        @Override
-        public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
-
-            if (item.getItemId() == R.id.action_delete) {
-                showDeletionConfirmation(mode);
-                return true;
-            }
-            return false;
-        }
-
-        private void showDeletionConfirmation(ActionMode mode) {
-
-            new AlertDialog.Builder(getContext())
-                    .setMessage("Are you sure?")
-                    .setPositiveButton("Yes", (dialog, which) -> deleteSelection(mode))
-                    .setNegativeButton("No", null)
-                    .show();
-        }
-
-        private void deleteSelection(ActionMode mode) {
-            mode.finish();
-
-            Observable.fromArray(mAdapter.getItems())
-                    .filter(file -> mMultiSelector.isSelected(mAdapter.getItemPosition(file), 0))
-                    .toList()
-                    .map(files -> files.toArray(new File[files.size()]))
-                    .subscribe(files -> mViewModel.delete(files));
-
-            mMultiSelector.clearSelections();
-        }
-    };
+    private FilesMultiSelectorCallback mActionModeCallback = new FilesMultiSelectorCallback(mMultiSelector);
 
     public FolderFragment() {
     }
@@ -112,6 +71,16 @@ public class FolderFragment extends Fragment {
 
         String extension = url.substring(url.lastIndexOf(".") + 1);
         return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension);
+    }
+
+    @Override
+    public void onDeleteConfirmationPositiveClick() {
+        mActionModeCallback.deleteSelections();
+    }
+
+    @Override
+    public void onDeleteConfirmationNegativeClick() {
+
     }
 
     @Override
@@ -129,7 +98,7 @@ public class FolderFragment extends Fragment {
         FilesViewModelProviderFactory factory = new FilesViewModelProviderFactory(mParent);
         mViewModel = ViewModelProviders.of(this, factory).get(FilesViewModel.class);
 
-        initMultiSelect(savedInstanceState);
+        restoreMultiSelect(savedInstanceState);
         initRecycler();
 
         mBinding.filesContent.setOnRefreshListener(this::loadFiles);
@@ -150,10 +119,11 @@ public class FolderFragment extends Fragment {
                 title = mParent.getName();
             }
         }
+        File defaultFolderFile = SettingsUtil.from(getContext()).getDefaultFolderFile();
         if (mParent == null) {
-            mParent = SettingsUtil.from(getContext()).getDefaultFolderFile();
+            mParent = defaultFolderFile;
         }
-        if (TextUtils.isEmpty(title)) {
+        if (title == null || mParent.getPath().equals(defaultFolderFile.getPath())) {
             title = getString(obtainDefaultTitle());
         }
         getActivity().setTitle(title);
@@ -175,14 +145,17 @@ public class FolderFragment extends Fragment {
         }
     }
 
-    private void initMultiSelect(Bundle savedInstanceState) {
+    @SuppressWarnings("ConstantConditions")
+    private void restoreMultiSelect(Bundle savedInstanceState) {
         if (savedInstanceState != null) {
-            //noinspection ConstantConditions
             mMultiSelector.restoreSelectionStates(savedInstanceState.getBundle(MULTISELECT_KEY));
+
+            if (mMultiSelector.isSelectable()) {
+                startMultiSelection();
+                mMultiSelector.restoreSelectionStates(savedInstanceState.getBundle(MULTISELECT_KEY));
+            }
         }
-        if (mMultiSelector.isSelectable()) {
-            startMultiSelection();
-        }
+
     }
 
     private void initRecycler() {
@@ -290,9 +263,56 @@ public class FolderFragment extends Fragment {
 
     @Override
     public void onSaveInstanceState(Bundle outState) {
-        super.onSaveInstanceState(outState);
 
         outState.putSerializable(PARENT_KEY, mParent);
         outState.putBundle(MULTISELECT_KEY, mMultiSelector.saveSelectionStates());
+
+        super.onSaveInstanceState(outState);
+    }
+
+    private class FilesMultiSelectorCallback extends ModalMultiSelectorCallback {
+
+        private ActionMode mMode;
+
+        public FilesMultiSelectorCallback(MultiSelector multiSelector) {
+            super(multiSelector);
+        }
+
+        @Override
+        public boolean onCreateActionMode(ActionMode actionMode, Menu menu) {
+            super.onCreateActionMode(actionMode, menu);
+
+            mMode = actionMode;
+
+            getActivity().getMenuInflater().inflate(R.menu.menu_files_action_mode, menu);
+            return true;
+        }
+
+        @Override
+        public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
+
+            mMode = mode;
+
+            if (item.getItemId() == R.id.action_delete) {
+                DeleteConfirmationDialog dialog = new DeleteConfirmationDialog();
+                dialog.setTargetFragment(FolderFragment.this, DELETE_REQUEST_CODE);
+                DialogUtil.from((AppCompatActivity) getActivity())
+                        .showDialog(dialog, true);
+                return true;
+            }
+            return false;
+        }
+
+        private void deleteSelections() {
+            mMode.finish();
+
+            Observable.fromArray(mAdapter.getItems())
+                    .filter(file -> mMultiSelector.isSelected(mAdapter.getItemPosition(file), 0))
+                    .toList()
+                    .map(files -> files.toArray(new File[files.size()]))
+                    .subscribe(files -> mViewModel.delete(files));
+
+            mMultiSelector.clearSelections();
+        }
     }
 }
