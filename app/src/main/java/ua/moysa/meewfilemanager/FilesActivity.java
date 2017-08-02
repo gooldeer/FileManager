@@ -1,6 +1,7 @@
 package ua.moysa.meewfilemanager;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -136,6 +137,8 @@ public class FilesActivity extends BaseLifecycleActivity implements FragmentMana
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
+
+            startActivity(new Intent(this, SettingsActivity.class));
             return true;
         }
 

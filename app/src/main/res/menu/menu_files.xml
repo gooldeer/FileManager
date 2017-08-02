@@ -2,6 +2,18 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     tools:context="ua.moysa.meewfilemanager.FilesActivity">
+
+    <item
+        android:id="@+id/menu_home"
+        android:icon="@drawable/ic_action_home"
+        android:title="@string/menu_home"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/menu_refresh"
+        android:title="@string/menu_refresh"
+        app:showAsAction="never" />
+
     <item
         android:id="@+id/action_settings"
         android:orderInCategory="100"

@@ -1,7 +1,35 @@
 <resources>
-    <string name="app_name">MeewFileManager</string>
+    <string name="app_name">File Manager</string>
     <string name="action_settings">Settings</string>
     <string name="snack_files_load_error">Files loading error!</string>
     <string name="empty">Emtpy</string>
     <string name="action_delete">Delete</string>
+    <string name="title_activity_settings">Settings</string>
+
+    <!-- Strings related to Settings -->
+
+    <!-- Example General settings -->
+    <string name="pref_header_general">General</string>
+
+    <string name="pref_title_display_name">Display name</string>
+
+    <string name="folder_root">Root</string>
+    <string name="folder_sdcard">SD-Card Storage</string>
+    <string name="folder_internal">Internal Storage</string>
+
+    <string name="pref_title_default_folder">Default Folder</string>
+    <string name="pref_key_default_folder">default_folder</string>
+    <string name="menu_refresh">Refresh</string>
+    <string name="menu_home">Home</string>
+    <string-array name="pref_default_folder_titles">
+        <item>@string/folder_root</item>
+        <item>@string/folder_sdcard</item>
+        <item>@string/folder_internal</item>
+    </string-array>
+    <string-array name="pref_default_folder_values">
+        <item>1</item>
+        <item>0</item>
+        <item>-1</item>
+    </string-array>
+
 </resources>

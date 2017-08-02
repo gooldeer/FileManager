@@ -12,6 +12,7 @@ import com.bignerdranch.android.multiselector.MultiSelector;
 import com.bignerdranch.android.multiselector.SwappingHolder;
 
 import java.io.File;
+import java.util.Arrays;
 
 import ua.moysa.meewfilemanager.R;
 import ua.moysa.meewfilemanager.databinding.ListItemFileBinding;
@@ -41,12 +42,6 @@ public class FilesAdapter extends RecyclerView.Adapter<FilesAdapter.ViewHolder> 
     public FilesAdapter(@Nullable File[] items, @NonNull MultiSelector multiSelector) {
         this.mItems = items == null ? new File[0] : items;
         mMultiSelector = multiSelector;
-    }
-
-    public void setItems(@Nullable File[] items) {
-        this.mItems = items == null ? new File[0] : items;
-
-        notifyDataSetChanged();
     }
 
     public void setOnClickListener(@NonNull OnFileClickListener onFileClickListener) {
@@ -87,6 +82,21 @@ public class FilesAdapter extends RecyclerView.Adapter<FilesAdapter.ViewHolder> 
             return mItems[position];
         }
         return null;
+    }
+
+    @NonNull
+    public File[] getItems() {
+        return mItems;
+    }
+
+    public void setItems(@Nullable File[] items) {
+        this.mItems = items == null ? new File[0] : items;
+
+        notifyDataSetChanged();
+    }
+
+    public int getItemPosition(@NonNull File item) {
+        return Arrays.asList(mItems).indexOf(item);
     }
 
     public interface OnFileClickListener {

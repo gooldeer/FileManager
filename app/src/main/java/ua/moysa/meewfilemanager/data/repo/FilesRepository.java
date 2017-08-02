@@ -36,7 +36,6 @@ public class FilesRepository {
 
         if (parent.exists() &&
                 parent.canRead() &&
-                parent.canWrite() &&
                 parent.isDirectory()) {
 
             File[] files = parent.listFiles();
@@ -44,7 +43,14 @@ public class FilesRepository {
             if (files != null) {
 
                 mParent = parent;
-                Arrays.sort(files);
+                Arrays.sort(files, (o1, o2) -> {
+                    if (o1.isDirectory())
+                        return o2.isDirectory() ? o1.compareTo(o2) : -1;
+                    else if (o2.isDirectory())
+                        return 1;
+
+                    return o1.compareTo(o2);
+                });
                 return files;
             }
         }
@@ -54,7 +60,7 @@ public class FilesRepository {
     @WorkerThread
     private boolean delete(@NonNull File file) {
 
-        if (file.isDirectory()) {
+        if (file.exists() && file.isDirectory() && file.canWrite() && file.canExecute()) {
 
             File[] files = file.listFiles();
 
@@ -88,26 +94,23 @@ public class FilesRepository {
     @NonNull
     public LiveData<Response<File[]>> deleteFile(@NonNull File... files) {
 
-        Observable.just(files)
+        Observable.fromArray(files)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .map(all -> {
-                    for (File f : all) {
-                        if (!delete(f)) {
-                            return false;
+                .map(this::delete)
+                .toList()
+                .map(bs -> {
+                    for (Boolean b : bs) {
+                        if (!b) {
+                            return Response.error("error", (File[]) null);
                         }
                     }
-                    return true;
+                    return Response.success(obtainFilesList(mParent));
                 })
-                .map(b -> b ?
-                        Response.success(obtainFilesList(mParent)) :
-                        Response.error("error", (File[]) null))
+                .doOnSubscribe(disposable -> mData.postValue(Response.loading(null)))
                 .subscribe(
                         r -> mData.setValue(r),
-                        e -> mData.setValue(Response.error(e.getMessage(), null)),
-                        () -> {
-                        },
-                        d -> mData.setValue(Response.loading(null))
+                        e -> mData.setValue(Response.error(e.getMessage(), null))
                 );
         return mData;
     }

@@ -7,10 +7,12 @@ import android.content.res.Configuration;
 import android.databinding.DataBindingUtil;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.support.annotation.StringRes;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
@@ -18,6 +20,7 @@ import android.support.v7.view.ActionMode;
 import android.support.v7.widget.DefaultItemAnimator;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.LinearLayoutManager;
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -29,11 +32,11 @@ import com.bignerdranch.android.multiselector.ModalMultiSelectorCallback;
 import com.bignerdranch.android.multiselector.MultiSelector;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
 
+import io.reactivex.Observable;
 import ua.moysa.meewfilemanager.data.response.Response;
 import ua.moysa.meewfilemanager.databinding.FragmentFolderBinding;
+import ua.moysa.meewfilemanager.util.SettingsUtil;
 import ua.moysa.meewfilemanager.view.FilesAdapter;
 import ua.moysa.meewfilemanager.view.FilesViewModel;
 import ua.moysa.meewfilemanager.view.FilesViewModelProviderFactory;
@@ -44,8 +47,10 @@ import ua.moysa.meewfilemanager.view.FilesViewModelProviderFactory;
 public class FolderFragment extends Fragment {
 
     public static final String FRAG_TAG = "fragment_folder.tag";
+
     private static final String PARENT_KEY = "fragment_folder.parent";
     private static final String MULTISELECT_KEY = "fragment_folder.multiselect";
+
     private FragmentFolderBinding mBinding;
 
     private File mParent;
@@ -88,19 +93,12 @@ public class FolderFragment extends Fragment {
         private void deleteSelection(ActionMode mode) {
             mode.finish();
 
-            List<File> toDelete = new ArrayList<>();
+            Observable.fromArray(mAdapter.getItems())
+                    .filter(file -> mMultiSelector.isSelected(mAdapter.getItemPosition(file), 0))
+                    .toList()
+                    .map(files -> files.toArray(new File[files.size()]))
+                    .subscribe(files -> mViewModel.delete(files));
 
-            for (int i = mAdapter.getItemCount(); i >= 0; i--) {
-
-                if (mMultiSelector.isSelected(i, 0)) {
-
-                    File file = mAdapter.getItem(i);
-                    if (file != null) {
-                        toDelete.add(file);
-                    }
-                }
-            }
-            mViewModel.delete(toDelete.toArray(new File[toDelete.size()]));
             mMultiSelector.clearSelections();
         }
     };
@@ -119,6 +117,9 @@ public class FolderFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
+
+        setHasOptionsMenu(true);
+
         View root = inflater.inflate(R.layout.fragment_folder, container, false);
 
         mBinding = DataBindingUtil.bind(root);
@@ -131,23 +132,46 @@ public class FolderFragment extends Fragment {
         initMultiSelect(savedInstanceState);
         initRecycler();
 
-        loadFiles();
+        mBinding.filesContent.setOnRefreshListener(this::loadFiles);
 
-        getActivity().setTitle(mParent.getName());
+        loadFiles();
 
         return root;
     }
 
     private void fillParentFolder(Bundle savedInstanceState) {
         Bundle bundle = savedInstanceState != null ? savedInstanceState : getArguments();
+        String title = null;
 
         if (bundle != null) {
             mParent = (File) bundle.getSerializable(PARENT_KEY);
-        }
 
+            if (mParent != null && !TextUtils.isEmpty(mParent.getName())) {
+                title = mParent.getName();
+            }
+        }
         if (mParent == null) {
-            //TODO use preferences for this
-            mParent = Environment.getExternalStorageDirectory();
+            mParent = SettingsUtil.from(getContext()).getDefaultFolderFile();
+        }
+        if (TextUtils.isEmpty(title)) {
+            title = getString(obtainDefaultTitle());
+        }
+        getActivity().setTitle(title);
+    }
+
+    @StringRes
+    private int obtainDefaultTitle() {
+
+        switch (SettingsUtil.from(getContext()).getDefaultFolder()) {
+
+            case SettingsUtil.FOLDER_INTERNAL:
+                return R.string.folder_internal;
+            case SettingsUtil.FOLDER_ROOT:
+                return R.string.folder_root;
+            case SettingsUtil.FOLDER_SDCARD:
+                return R.string.folder_sdcard;
+            default:
+                return R.string.folder_internal;
         }
     }
 
@@ -171,8 +195,6 @@ public class FolderFragment extends Fragment {
         } else {
             mBinding.filesRecycler.setLayoutManager(new LinearLayoutManager(getContext()));
         }
-
-
         mBinding.filesRecycler.setItemAnimator(new DefaultItemAnimator());
 
         mBinding.filesRecycler.setAdapter(mAdapter);
@@ -185,6 +207,23 @@ public class FolderFragment extends Fragment {
         return ((AppCompatActivity) getActivity()).startSupportActionMode(mActionModeCallback);
     }
 
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+
+        if (item.getItemId() == R.id.menu_refresh) {
+            mBinding.filesContent.setRefreshing(true);
+            loadFiles();
+
+            return true;
+        } else if (item.getItemId() == R.id.menu_home) {
+
+            getFragmentManager().popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
+            openDirectory(null, false);
+        }
+
+        return super.onOptionsItemSelected(item);
+    }
+
     private void loadFiles() {
         mViewModel
                 .listFiles(mParent)
@@ -193,8 +232,10 @@ public class FolderFragment extends Fragment {
 
     private void onFilesLoad(Response<File[]> response) {
         if (response.getStatus() == Response.Status.SUCCESS) {
+            mBinding.filesContent.setRefreshing(false);
             mAdapter.setItems(response.getData());
         } else if (response.getStatus() == Response.Status.ERROR) {
+            mBinding.filesContent.setRefreshing(false);
             Snackbar
                     .make(
                             mBinding.filesContent,
@@ -202,7 +243,9 @@ public class FolderFragment extends Fragment {
                             Snackbar.LENGTH_SHORT)
                     .show();
         } else if (response.getStatus() == Response.Status.LOADING) {
-            //TODO show progress bar
+            if (!mBinding.filesContent.isRefreshing()) {
+                mBinding.filesContent.setRefreshing(true);
+            }
         }
     }
 
@@ -211,7 +254,7 @@ public class FolderFragment extends Fragment {
         if (file.exists() && file.canRead()) {
 
             if (file.isDirectory()) {
-                openDirectory(file);
+                openDirectory(file, true);
             } else {
                 openFile(file);
             }
@@ -225,11 +268,11 @@ public class FolderFragment extends Fragment {
         startActivity(intent);
     }
 
-    private void openDirectory(@NonNull File file) {
+    private void openDirectory(@Nullable File file, boolean withBackStack) {
         Bundle args = new Bundle();
         args.putSerializable(PARENT_KEY, file);
 
-        getFragmentManager()
+        FragmentTransaction transaction = getFragmentManager()
                 .beginTransaction()
                 .replace(
                         R.id.fragment,
@@ -237,9 +280,12 @@ public class FolderFragment extends Fragment {
                                 getContext(), FolderFragment.class.getName(), args),
                         FRAG_TAG)
                 .setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
-                .setTransitionStyle(android.R.style.Animation_Activity)
-                .addToBackStack(null)
-                .commit();
+                .setTransitionStyle(android.R.style.Animation_Activity);
+
+        if (withBackStack) {
+            transaction.addToBackStack(null);
+        }
+        transaction.commit();
     }
 
     @Override
