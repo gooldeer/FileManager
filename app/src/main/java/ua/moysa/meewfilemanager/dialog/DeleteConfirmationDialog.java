@@ -29,7 +29,7 @@ public class DeleteConfirmationDialog extends DialogFragment {
                 })
                 .setNegativeButton(R.string.button_no, (dialog, which) -> {
                     if (getTargetFragment() != null && getTargetFragment() instanceof OnDeleteConfirmationInteractionListener) {
-                        ((OnDeleteConfirmationInteractionListener) getActivity())
+                        ((OnDeleteConfirmationInteractionListener) getTargetFragment())
                                 .onDeleteConfirmationNegativeClick();
                     }
                     DeleteConfirmationDialog.this.dismiss();
