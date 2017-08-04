@@ -114,7 +114,9 @@ public class FolderFragment extends LifecycleFragment implements DeleteConfirmat
     public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        if (savedInstanceState == null && !mAlreadyLoaded) {
+        if ((savedInstanceState == null && !mAlreadyLoaded)
+                || mViewModel.getLiveData().getValue() == null) {
+
             mAlreadyLoaded = true;
 
             loadFiles();
