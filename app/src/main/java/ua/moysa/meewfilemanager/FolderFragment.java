@@ -1,6 +1,6 @@
 package ua.moysa.meewfilemanager;
 
-import android.arch.lifecycle.LifecycleOwner;
+import android.arch.lifecycle.LifecycleFragment;
 import android.arch.lifecycle.ViewModelProviders;
 import android.content.Intent;
 import android.content.res.Configuration;
@@ -45,7 +45,7 @@ import ua.moysa.meewfilemanager.view.FilesViewModelProviderFactory;
 /**
  * Created by Sergey Moysa
  */
-public class FolderFragment extends Fragment implements DeleteConfirmationDialog.OnDeleteConfirmationInteractionListener {
+public class FolderFragment extends LifecycleFragment implements DeleteConfirmationDialog.OnDeleteConfirmationInteractionListener {
 
     public static final String FRAG_TAG = "fragment_folder.tag";
     public static final int DELETE_REQUEST_CODE = 456;
@@ -61,6 +61,8 @@ public class FolderFragment extends Fragment implements DeleteConfirmationDialog
 
     private MultiSelector mMultiSelector = new MultiSelector();
     private FilesMultiSelectorCallback mActionModeCallback = new FilesMultiSelectorCallback(mMultiSelector);
+
+    private boolean mAlreadyLoaded;
 
     public FolderFragment() {
     }
@@ -98,14 +100,25 @@ public class FolderFragment extends Fragment implements DeleteConfirmationDialog
         FilesViewModelProviderFactory factory = new FilesViewModelProviderFactory(mParent);
         mViewModel = ViewModelProviders.of(this, factory).get(FilesViewModel.class);
 
+        mViewModel.getLiveData().observe(this, this::onFilesLoad);
+
         restoreMultiSelect(savedInstanceState);
         initRecycler();
 
         mBinding.filesContent.setOnRefreshListener(this::loadFiles);
 
-        loadFiles();
-
         return root;
+    }
+
+    @Override
+    public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
+        if (savedInstanceState == null && !mAlreadyLoaded) {
+            mAlreadyLoaded = true;
+
+            loadFiles();
+        }
     }
 
     private void fillParentFolder(Bundle savedInstanceState) {
@@ -198,9 +211,7 @@ public class FolderFragment extends Fragment implements DeleteConfirmationDialog
     }
 
     private void loadFiles() {
-        mViewModel
-                .listFiles(mParent)
-                .observe((LifecycleOwner) getActivity(), this::onFilesLoad);
+        mViewModel.listFiles(mParent);
     }
 
     private void onFilesLoad(Response<File[]> response) {

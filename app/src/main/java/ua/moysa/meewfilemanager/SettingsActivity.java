@@ -91,6 +91,11 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setupActionBar();
+
+        if (!isXLargeTablet(this)) {
+            getFragmentManager().beginTransaction().replace(android.R.id.content,
+                    new GeneralPreferenceFragment()).commit();
+        }
     }
 
     /**
@@ -130,7 +135,10 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
     @Override
     @TargetApi(Build.VERSION_CODES.HONEYCOMB)
     public void onBuildHeaders(List<Header> target) {
-        loadHeadersFromResource(R.xml.pref_headers, target);
+
+        if (isXLargeTablet(this)) {
+            loadHeadersFromResource(R.xml.pref_headers, target);
+        }
     }
 
     /**
@@ -165,7 +173,7 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
         @Override
         public boolean onOptionsItemSelected(MenuItem item) {
             int id = item.getItemId();
-            if (id == android.R.id.home) {
+            if (id == android.R.id.home && isXLargeTablet(getActivity())) {
                 startActivity(new Intent(getActivity(), SettingsActivity.class));
                 return true;
             }

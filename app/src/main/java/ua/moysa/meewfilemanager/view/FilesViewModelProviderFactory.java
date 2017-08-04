@@ -17,8 +17,12 @@ public class FilesViewModelProviderFactory extends ViewModelProvider.NewInstance
     @NonNull
     private final FilesRepository mRepo;
 
+    @NonNull
+    private final File mParent;
+
     public FilesViewModelProviderFactory(@NonNull File parent) {
-        mRepo = new FilesRepository(parent);
+        mRepo = new FilesRepository();
+        mParent = parent;
     }
 
     @Override
@@ -26,7 +30,7 @@ public class FilesViewModelProviderFactory extends ViewModelProvider.NewInstance
 
         if (modelClass.equals(FilesViewModel.class)) {
             //noinspection unchecked
-            return (T) new FilesViewModel(mRepo);
+            return (T) new FilesViewModel(mRepo, mParent);
         }
 
         return super.create(modelClass);
